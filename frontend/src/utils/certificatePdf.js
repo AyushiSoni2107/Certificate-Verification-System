@@ -17,14 +17,33 @@ const formatCertificateRange = (certificate) => {
 const getImageType = (dataUrl) =>
   String(dataUrl || "").includes("image/jpeg") ? "JPEG" : "PNG";
 
+const resolveVerifyUrl = (certificate, appOrigin) => {
+  const fallbackUrl = `${appOrigin}/certificate/${certificate.certificateId}`;
+  const storedUrl = String(certificate.certificateUrl || "").trim();
+
+  if (!storedUrl) {
+    return fallbackUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(storedUrl);
+    const isLocalhost =
+      parsedUrl.hostname === "localhost" ||
+      parsedUrl.hostname === "127.0.0.1" ||
+      parsedUrl.hostname === "::1";
+
+    return isLocalhost ? fallbackUrl : parsedUrl.toString();
+  } catch {
+    return fallbackUrl;
+  }
+};
+
 export const downloadCertificatePdf = async (certificate, adminProfile = {}) => {
   const doc = new jsPDF("landscape", "pt", "a4");
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
-  const verifyUrl =
-    certificate.certificateUrl ||
-    `${appOrigin}/certificate/${certificate.certificateId}`;
+  const verifyUrl = resolveVerifyUrl(certificate, appOrigin);
   const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl, {
     margin: 1,
     width: 160,
