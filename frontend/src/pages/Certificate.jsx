@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import QRCode from "qrcode";
 import { apiRequest } from "../utils/api.js";
 import { getAdminProfile } from "../utils/adminProfile.js";
 import { downloadCertificatePdf } from "../utils/certificatePdf.js";
@@ -9,6 +10,27 @@ const buildStudentAnalyticsKey = (user) =>
 const buildStudentDownloadsKey = (user) =>
   `studentDownloads:${user?.id || user?.email || "default"}`;
 
+const resolveVerifyUrl = (certificate, appOrigin) => {
+  const fallbackUrl = `${appOrigin}/certificate/${certificate.certificateId}`;
+  const storedUrl = String(certificate?.certificateUrl || "").trim();
+
+  if (!storedUrl) {
+    return fallbackUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(storedUrl);
+    const isLocalhost =
+      parsedUrl.hostname === "localhost" ||
+      parsedUrl.hostname === "127.0.0.1" ||
+      parsedUrl.hostname === "::1";
+
+    return isLocalhost ? fallbackUrl : parsedUrl.toString();
+  } catch {
+    return fallbackUrl;
+  }
+};
+
 export default function Certificate() {
   const { id } = useParams();
   const location = useLocation();
@@ -17,6 +39,7 @@ export default function Certificate() {
   const [certificate, setCertificate] = useState(null);
   const [status, setStatus] = useState({ loading: true, error: "" });
   const [adminProfile, setAdminProfile] = useState({});
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const hasAutoDownloaded = useRef(false);
 
   useEffect(() => {
@@ -32,6 +55,34 @@ export default function Certificate() {
 
     loadCertificate();
   }, [id]);
+
+  useEffect(() => {
+    const buildQrCode = async () => {
+      if (!certificate) {
+        setQrCodeDataUrl("");
+        return;
+      }
+
+      const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
+      const verifyUrl = resolveVerifyUrl(certificate, appOrigin);
+
+      try {
+        const dataUrl = await QRCode.toDataURL(verifyUrl, {
+          margin: 1,
+          width: 160,
+          color: {
+            dark: "#0f1b2d",
+            light: "#FFF8F1",
+          },
+        });
+        setQrCodeDataUrl(dataUrl);
+      } catch {
+        setQrCodeDataUrl("");
+      }
+    };
+
+    buildQrCode();
+  }, [certificate]);
 
   useEffect(() => {
     try {
@@ -206,6 +257,34 @@ export default function Certificate() {
             Search Another
           </Link>
         </div>
+        {certificate ? (
+          <div className="mt-6 rounded-3xl border border-[#f0d7c1] bg-white/80 p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-ink-soft">
+              Scan to Verify
+            </div>
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+              {qrCodeDataUrl ? (
+                <img
+                  src={qrCodeDataUrl}
+                  alt={`QR code for certificate ${certificate.certificateId}`}
+                  className="h-28 w-28 rounded-2xl bg-white p-2 shadow-[0_10px_24px_rgba(15,27,45,0.08)]"
+                />
+              ) : (
+                <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-[#f9f4ec] text-xs text-ink-soft">
+                  Generating...
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-ink">
+                  Open the public verification page
+                </div>
+                <div className="mt-1 break-all text-xs leading-5 text-ink-soft">
+                  {resolveVerifyUrl(certificate, import.meta.env.VITE_APP_URL || window.location.origin)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {adminProfile.signature || adminProfile.address || adminProfile.website ? (
           <div className="mt-8 border-t border-[#f1e2d2] pt-6">
             <div className="text-right">
