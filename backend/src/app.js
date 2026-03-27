@@ -7,8 +7,13 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 const app = express();
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "10mb";
+const allowedOrigin = process.env.CLIENT_URL?.replace(/\/$/, "") || "*";
 
-app.use(cors({ origin: process.env.CLIENT_URL || "*" }));
+app.use(
+  cors({
+    origin: allowedOrigin,
+  })
+);
 app.use(express.json({ limit: requestBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 
