@@ -1,0 +1,12 @@
+@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700&family=Source+Sans+3:wght@300;400;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-body text-ink min-h-screen;
+    background: radial-gradient(circle at top left, #fff5e0, #f7f2e8 45%, #f0efe9);
+  }
+}
